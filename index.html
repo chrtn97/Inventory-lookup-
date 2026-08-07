@@ -2,180 +2,202 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ANPASA Inventarios</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Conteo de Inventario</title>
 
 <style>
 body{
     font-family: Arial, sans-serif;
-    margin:20px;
+    background:#f4f6f9;
+    margin:0;
+    padding:15px;
 }
 
 h1{
     text-align:center;
 }
 
-select,input{
+.card{
+    background:#fff;
+    padding:15px;
+    border-radius:10px;
+    box-shadow:0 2px 8px rgba(0,0,0,.1);
+    margin-bottom:15px;
+}
+
+input{
+    width:100%;
+    padding:12px;
+    margin:5px 0;
+    box-sizing:border-box;
+    border:1px solid #ccc;
+    border-radius:8px;
+}
+
+button{
+    border:none;
+    border-radius:8px;
     padding:10px;
-    margin:5px;
+    color:white;
+    cursor:pointer;
+}
+
+.registrar{
+    width:100%;
+    background:#1976d2;
+    margin-top:5px;
+}
+
+.editar{
+    background:#f39c12;
+}
+
+.eliminar{
+    background:#e74c3c;
+}
+
+.pdf{
+    width:100%;
+    background:#27ae60;
+    margin-top:10px;
 }
 
 table{
     width:100%;
     border-collapse:collapse;
+    background:white;
 }
 
 th,td{
-    border:1px solid #ccc;
+    border:1px solid #ddd;
     padding:8px;
+    text-align:center;
+    font-size:14px;
 }
 
 th{
-    background:#f0f0f0;
+    background:#1976d2;
+    color:white;
 }
 
 .cantidad{
-    width:80px;
-}
-
-button{
-    padding:8px 12px;
-    cursor:pointer;
+    font-weight:bold;
 }
 </style>
+
+https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.jsscript>
+
 </head>
 <body>
 
-<h1>ANPASA INVENTARIOS</h1>
+<h1>Conteo de Inventario</h1>
 
-<select id="linea" onchange="cargarLinea()">
-    <option value="colgante">COLGANTE</option>
-    <option value="tubular">TUBULAR</option>
-    <option value="multidireccional">MULTIDIRECCIONAL</option>
-    <option value="pararrayos">PARARRAYOS</option>
-</select>
+<div class="card">
 
-<input type="text" id="buscar" placeholder="Buscar..." onkeyup="filtrar()">
+<input type="text" id="articulo" placeholder="No. Artículo">
 
-<button onclick="limpiarTodo()">Limpiar Inventario</button>
+<input type="text" id="nombre" placeholder="Nombre del artículo">
 
-<br><br>
+<input type="number" id="movimiento" placeholder="Cantidad (+ o -)">
+
+<button class="registrar" onclick="registrarMovimiento()">
+Registrar Movimiento
+</button>
+
+</div>
 
 <table>
 <thead>
 <tr>
-<th>Código</th>
-<th>Descripción</th>
+<th>No. Artículo</th>
+<th>Nombre</th>
 <th>Cantidad</th>
+<th>Acciones</th>
 </tr>
 </thead>
-<tbody id="tabla"></tbody>
+
+<tbody id="tablaInventario"></tbody>
 </table>
+
+<button class="pdf" onclick="exportarPDF()">
+Exportar PDF
+</button>
 
 <script>
 
-const catalogos = {
+let inventario =
+JSON.parse(localStorage.getItem("inventario")) || [];
 
-colgante: [
-{codigo:"PLATM-200",descripcion:"PLATAFORMA METALICA 2.00 MT"},
-{codigo:"PLATM-250",descripcion:"PLATAFORMA METALICA 2.50 MT"},
-{codigo:"PASM-200",descripcion:"PASAMANOS METALICO 2.00 MT"},
-{codigo:"TIR-2000",descripcion:"TIRFOR ET-2000"}
-],
+function guardarDatos(){
+    localStorage.setItem(
+        "inventario",
+        JSON.stringify(inventario)
+    );
 
-tubular: [
-{codigo:"B-10",descripcion:"BASE TUBULAR"},
-{codigo:"M-152",descripcion:"MARCO"},
-{codigo:"P-213",descripcion:"PLATAFORMA"},
-{codigo:"TA-40",descripcion:"TORNILLO DE AJUSTE"}
-],
-
-multidireccional: [
-{codigo:"2603.100",descripcion:"POSTE VERTICAL 100"},
-{codigo:"2601.157",descripcion:"SOPORTE HORIZONTAL 157"},
-{codigo:"4001.060",descripcion:"TORNILLO BASE 60"},
-{codigo:"4702.022",descripcion:"GRAPA GIRATORIA"}
-],
-
-pararrayos: [
-{codigo:"A30",descripcion:"CABLE DE ALUMINIO"},
-{codigo:"C121A",descripcion:"ABRAZADERA PARA CABLE"},
-{codigo:"RPM6",descripcion:"KIT RETENIDA MASTIL"},
-{codigo:"KELYNC-L",descripcion:"KIT ELECTRODO QUIMICO"}
-]
-
-};
-
-function cargarLinea(){
-
-const linea=document.getElementById("linea").value;
-const tabla=document.getElementById("tabla");
-
-tabla.innerHTML="";
-
-catalogos[linea].forEach(item=>{
-
-const key=linea+"_"+item.codigo;
-const valor=localStorage.getItem(key)||"";
-
-tabla.innerHTML+=`
-<tr>
-<td>${item.codigo}</td>
-<td>${item.descripcion}</td>
-<td>
-<input
-class="cantidad"
-type="number"
-value="${valor}"
-oninput="guardar('${key}',this.value)"
->
-</td>
-</tr>
-`;
-
-});
-
+    mostrarTabla();
 }
 
-function guardar(key,valor){
-localStorage.setItem(key,valor);
+function registrarMovimiento(){
+
+    let articulo =
+    document.getElementById("articulo").value.trim();
+
+    let nombre =
+    document.getElementById("nombre").value.trim();
+
+    let movimiento =
+    parseInt(document.getElementById("movimiento").value);
+
+    if(
+        articulo === "" ||
+        nombre === "" ||
+        isNaN(movimiento)
+    ){
+        alert("Completa todos los campos");
+        return;
+    }
+
+    let existente =
+    inventario.find(
+        item => item.articulo === articulo
+    );
+
+    if(existente){
+
+        existente.cantidad += movimiento;
+        existente.nombre = nombre;
+
+    }else{
+
+        inventario.push({
+            articulo: articulo,
+            nombre: nombre,
+            cantidad: movimiento
+        });
+
+    }
+
+    guardarDatos();
+
+    document.getElementById("articulo").value = "";
+    document.getElementById("nombre").value = "";
+    document.getElementById("movimiento").value = "";
+
+    document.getElementById("articulo").focus();
 }
 
-function filtrar(){
+function editarArticulo(indice){
 
-const texto=document.getElementById("buscar").value.toLowerCase();
+    let nuevaCantidad =
+    prompt(
+        "Nueva cantidad:",
+        inventario[indice].cantidad
+    );
 
-document.querySelectorAll("#tabla tr").forEach(fila=>{
+    if(nuevaCantidad !== null){
 
-fila.style.display=
-fila.innerText.toLowerCase().includes(texto)
-? ""
-: "none";
+        inventario[indice].cantidad =
+        parseInt(nuevaCantidad) || 0;
 
-});
-
-}
-
-function limpiarTodo(){
-
-if(confirm("¿Eliminar capturas de esta línea?")){
-
-const linea=document.getElementById("linea").value;
-
-catalogos[linea].forEach(item=>{
-localStorage.removeItem(linea+"_"+item.codigo);
-});
-
-cargarLinea();
-
-}
-
-}
-
-cargarLinea();
-
-</script>
-
-</body>
-</html>
-``
+        guardarDatos();
+    
