@@ -8,23 +8,20 @@
 <style>
 body{
     font-family: Arial, sans-serif;
-    background:#f4f6f9;
-    margin:0;
+    background:#f4f4f4;
     padding:15px;
+    margin:0;
 }
-
 h1{
     text-align:center;
 }
-
 .card{
-    background:#fff;
+    background:white;
     padding:15px;
     border-radius:10px;
-    box-shadow:0 2px 8px rgba(0,0,0,.1);
+    box-shadow:0 2px 5px rgba(0,0,0,0.15);
     margin-bottom:15px;
 }
-
 input{
     width:100%;
     padding:12px;
@@ -32,112 +29,96 @@ input{
     box-sizing:border-box;
     border:1px solid #ccc;
     border-radius:8px;
+    font-size:16px;
 }
-
 button{
     border:none;
     border-radius:8px;
     padding:10px;
-    color:white;
     cursor:pointer;
+    color:white;
+    font-weight:bold;
 }
-
-.registrar{
+.btn-agregar{
     width:100%;
     background:#1976d2;
-    margin-top:5px;
 }
-
-.editar{
+.btn-editar{
     background:#f39c12;
 }
-
-.eliminar{
+.btn-eliminar{
     background:#e74c3c;
 }
-
-.pdf{
-    width:100%;
-    background:#27ae60;
-    margin-top:10px;
-}
-
 table{
     width:100%;
     border-collapse:collapse;
     background:white;
 }
-
-th,td{
+th, td{
     border:1px solid #ddd;
     padding:8px;
     text-align:center;
-    font-size:14px;
 }
-
 th{
     background:#1976d2;
     color:white;
 }
-
-.cantidad{
+.total{
+    text-align:center;
+    margin-bottom:10px;
+    font-size:18px;
     font-weight:bold;
 }
 </style>
-
-https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.jsscript>
-
 </head>
+
 <body>
 
 <h1>Conteo de Inventario</h1>
 
 <div class="card">
 
-<input type="text" id="articulo" placeholder="No. Artículo">
+    <input type="text" id="articulo" placeholder="No. Artículo">
 
-<input type="text" id="nombre" placeholder="Nombre del artículo">
+    <input type="text" id="nombre" placeholder="Nombre del artículo">
 
-<input type="number" id="movimiento" placeholder="Cantidad (+ o -)">
+    <input type="number" id="cantidad" placeholder="Cantidad (+ o -)">
 
-<button class="registrar" onclick="registrarMovimiento()">
-Registrar Movimiento
-</button>
+    <button class="btn-agregar" onclick="registrar()">
+        Registrar Movimiento
+    </button>
 
 </div>
 
+<div class="total">
+    Total de piezas: <span id="total">0</span>
+</div>
+
 <table>
-<thead>
-<tr>
-<th>No. Artículo</th>
-<th>Nombre</th>
-<th>Cantidad</th>
-<th>Acciones</th>
-</tr>
-</thead>
-
-<tbody id="tablaInventario"></tbody>
+    <thead>
+        <tr>
+            <th>Artículo</th>
+            <th>Nombre</th>
+            <th>Cantidad</th>
+            <th>Acciones</th>
+        </tr>
+    </thead>
+    <tbody id="tabla"></tbody>
 </table>
-
-<button class="pdf" onclick="exportarPDF()">
-Exportar PDF
-</button>
 
 <script>
 
 let inventario =
 JSON.parse(localStorage.getItem("inventario")) || [];
 
-function guardarDatos(){
+function guardar() {
     localStorage.setItem(
         "inventario",
         JSON.stringify(inventario)
     );
-
-    mostrarTabla();
 }
 
-function registrarMovimiento(){
+function registrar() {
 
     let articulo =
     document.getElementById("articulo").value.trim();
@@ -145,59 +126,75 @@ function registrarMovimiento(){
     let nombre =
     document.getElementById("nombre").value.trim();
 
-    let movimiento =
-    parseInt(document.getElementById("movimiento").value);
+    let cantidad =
+    Number(document.getElementById("cantidad").value);
 
     if(
         articulo === "" ||
         nombre === "" ||
-        isNaN(movimiento)
+        isNaN(cantidad)
     ){
         alert("Completa todos los campos");
         return;
     }
 
-    let existente =
+    let existe =
     inventario.find(
         item => item.articulo === articulo
     );
 
-    if(existente){
-
-        existente.cantidad += movimiento;
-        existente.nombre = nombre;
-
+    if(existe){
+        existe.cantidad += cantidad;
     }else{
-
         inventario.push({
             articulo: articulo,
             nombre: nombre,
-            cantidad: movimiento
+            cantidad: cantidad
         });
-
     }
 
-    guardarDatos();
+    guardar();
+    mostrar();
 
     document.getElementById("articulo").value = "";
     document.getElementById("nombre").value = "";
-    document.getElementById("movimiento").value = "";
-
-    document.getElementById("articulo").focus();
+    document.getElementById("cantidad").value = "";
 }
 
-function editarArticulo(indice){
+function editar(indice){
 
-    let nuevaCantidad =
-    prompt(
+    let nuevaCantidad = prompt(
         "Nueva cantidad:",
         inventario[indice].cantidad
     );
 
-    if(nuevaCantidad !== null){
+    if(nuevaCantidad === null) return;
 
-        inventario[indice].cantidad =
-        parseInt(nuevaCantidad) || 0;
+    inventario[indice].cantidad =
+    Number(nuevaCantidad);
 
-        guardarDatos();
-    
+    guardar();
+    mostrar();
+}
+
+function eliminar(indice){
+
+    if(confirm("¿Eliminar artículo?")){
+
+        inventario.splice(indice,1);
+
+        guardar();
+        mostrar();
+    }
+}
+
+function mostrar(){
+
+    let tabla =
+    document.getElementById("tabla");
+
+    tabla.innerHTML = "";
+
+    let total = 0;
+
+    inventario.forEach(
